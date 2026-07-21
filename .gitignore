@@ -30,6 +30,10 @@ service-account*.json
 # Demo sink output
 /out/
 
+# Real tenant registry (config/tenants.example.yaml is the tracked demo/test
+# fixture; a real deployment's own registry is not committed)
+/config/tenants.yaml
+
 # Editor / OS
 .vscode/
 .idea/
