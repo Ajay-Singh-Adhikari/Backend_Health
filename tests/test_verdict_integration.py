@@ -25,13 +25,26 @@ EXPECTED_VERDICTS = {
 }
 
 
+def _rollup_metrics(p95s, cpus, mems, bottleneck_count):
+    """Mirrors sql/views/daily_tenant_metrics.sql over flat lists of raw
+    samples — the single aggregation formula shared by both worked examples
+    below, so a future change to it can't drift between them."""
+    return (
+        sum(p95s) / len(p95s),
+        max(cpus),
+        max(mems),
+        bottleneck_count,
+    )
+
+
 def _daily_rollup(bundle):
-    """Mirrors sql/views/daily_tenant_metrics.sql for a single hour's bundle."""
-    avg_p95_ms = sum(s.p95_ms for s in bundle.latency) / len(bundle.latency)
-    max_cpu_percent = max(r.cpu_percent for r in bundle.resources)
-    max_memory_percent = max(r.memory_percent for r in bundle.resources)
-    bottleneck_count = len(bundle.bottlenecks)
-    return avg_p95_ms, max_cpu_percent, max_memory_percent, bottleneck_count
+    """Mirrors daily_tenant_metrics.sql for a single hour's bundle."""
+    return _rollup_metrics(
+        [s.p95_ms for s in bundle.latency],
+        [r.cpu_percent for r in bundle.resources],
+        [r.memory_percent for r in bundle.resources],
+        len(bundle.bottlenecks),
+    )
 
 
 def _verdict_for(tenant, avg_p95_ms, max_cpu_percent, max_memory_percent, bottleneck_count):
@@ -90,9 +103,9 @@ EXPECTED_TREND = {
 
 
 def _daily_rollup_multi_hour(tenant, source, day):
-    """Same rollup as _daily_rollup, but over several hours in one day —
-    mirrors daily_tenant_metrics.sql aggregating a full day of hourly pulls,
-    rather than test_worked_example's single-hour bundle."""
+    """Same _rollup_metrics core as _daily_rollup, but fed from several hours
+    in one day — mirrors daily_tenant_metrics.sql aggregating a full day of
+    hourly pulls, rather than test_worked_example's single-hour bundle."""
     p95s, cpus, mems, bottleneck_count = [], [], [], 0
     for hour in TREND_HOURS:
         bundle = source.fetch(tenant, datetime(2026, 7, day, hour, 0, 0))
@@ -100,10 +113,13 @@ def _daily_rollup_multi_hour(tenant, source, day):
         cpus.extend(r.cpu_percent for r in bundle.resources)
         mems.extend(r.memory_percent for r in bundle.resources)
         bottleneck_count += len(bundle.bottlenecks)
+    avg_p95_ms, max_cpu_percent, max_memory_percent, bottleneck_count = _rollup_metrics(
+        p95s, cpus, mems, bottleneck_count
+    )
     return {
-        "avg_p95_ms": round(sum(p95s) / len(p95s), 1),
-        "max_cpu_percent": round(max(cpus), 1),
-        "max_memory_percent": round(max(mems), 1),
+        "avg_p95_ms": round(avg_p95_ms, 1),
+        "max_cpu_percent": round(max_cpu_percent, 1),
+        "max_memory_percent": round(max_memory_percent, 1),
         "bottleneck_count": bottleneck_count,
     }
 
