@@ -2,11 +2,13 @@ import argparse
 import logging
 from datetime import datetime, timezone
 
+from backend_health.alerts import get_alerter
 from backend_health.bigquery_sink import get_sink
 from backend_health.config import RegistryError, active_tenants, get_tenant, load_registry
 from backend_health.credentials import get_backend
+from backend_health.health_state import DEFAULT_STATE_FILE, PipelineHealthState
 from backend_health.nerdgraph import get_source
-from backend_health.pipeline import run as run_pipeline
+from backend_health.pipeline import DEFAULT_ALERT_THRESHOLD, run as run_pipeline
 
 log = logging.getLogger("backend_health")
 
@@ -26,6 +28,13 @@ def build_parser() -> argparse.ArgumentParser:
             "--config",
             default=DEFAULT_CONFIG,
             help=f"Path to the tenant registry (default: {DEFAULT_CONFIG}).",
+        )
+
+    def add_state_arg(p: argparse.ArgumentParser) -> None:
+        p.add_argument(
+            "--state-file",
+            default=DEFAULT_STATE_FILE,
+            help=f"Path to the pipeline-health state file (default: {DEFAULT_STATE_FILE}).",
         )
 
     run_p = sub.add_parser("run", help="Pull metrics for active tenants and write to BigQuery.")
@@ -51,10 +60,28 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Directory for the demo sink's JSONL files (default: {DEFAULT_SINK_DIR}).",
     )
     run_p.add_argument("--dataset", help="BigQuery dataset (required when --sink=bigquery).")
+    run_p.add_argument(
+        "--alert-threshold",
+        type=int,
+        default=DEFAULT_ALERT_THRESHOLD,
+        help=f"Consecutive tenant failures before alerting (default: {DEFAULT_ALERT_THRESHOLD}).",
+    )
+    run_p.add_argument(
+        "--alert-webhook",
+        help="Webhook URL for alerts (defaults to BACKEND_HEALTH_ALERT_WEBHOOK env var, "
+        "falling back to logging only).",
+    )
+    add_state_arg(run_p)
     add_config_arg(run_p)
 
     tenants_p = sub.add_parser("tenants", help="List tenants in the registry.")
     add_config_arg(tenants_p)
+
+    health_p = sub.add_parser(
+        "pipeline-health",
+        help="Show each tenant's consecutive-failure streak, without querying BigQuery.",
+    )
+    add_state_arg(health_p)
 
     return parser
 
@@ -71,6 +98,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "tenants":
         return _tenants(args)
+
+    if args.command == "pipeline-health":
+        return _pipeline_health(args)
 
     return 1
 
@@ -106,13 +136,25 @@ def _run(args: argparse.Namespace) -> int:
     credentials = get_backend()
     source = get_source(args.source, credentials=credentials)
     sink = get_sink(args.sink, directory=args.sink_dir, dataset=args.dataset)
+    health_state = PipelineHealthState.load(args.state_file)
+    alerter = get_alerter(args.alert_webhook)
 
     # Truncated to the hour: re-running within the same hour is idempotent
     # (JsonlSink/BigQuerySink replace the window) and, for the demo source,
     # deterministic (seeded by tenant + hour).
     collected_at = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
-    summary = run_pipeline(scope, source, sink, collected_at)
+    summary = run_pipeline(
+        scope,
+        source,
+        sink,
+        collected_at,
+        health_state=health_state,
+        alerter=alerter,
+        alert_threshold=args.alert_threshold,
+    )
+    health_state.save(args.state_file)
+
     log.info(
         "run complete: %d ok, %d failed, %d rows written",
         summary.ok_count,
@@ -136,5 +178,23 @@ def _tenants(args: argparse.Namespace) -> int:
             tenant.tenant_id,
             tenant.status,
             tenant.newrelic_account_id or "-",
+        )
+    return 0
+
+
+def _pipeline_health(args: argparse.Namespace) -> int:
+    health_state = PipelineHealthState.load(args.state_file)
+    tenants = health_state.all()
+    if not tenants:
+        log.info("no pipeline-health history yet in %s", args.state_file)
+        return 0
+    log.info("pipeline health from %s:", args.state_file)
+    for health in tenants:
+        log.info(
+            "  %-10s last=%-6s consecutive_failures=%d%s",
+            health.tenant_id,
+            health.last_status,
+            health.consecutive_failures,
+            f" last_error={health.last_error}" if health.last_error else "",
         )
     return 0
