@@ -109,10 +109,20 @@ switch from the demo defaults to the real path:
     --dataset my-project.backend_health
 ```
 
-(`config/tenants.yaml` isn't in the repo per Step 2 — check it out via a
-private path, a deploy step, or a secret-backed config fetch; how depends on
-your CI setup and is a deliberate "not decided here" per the README's
-remaining open question about the pull job's exact deployment shape.)
+`config/tenants.yaml` isn't in the repo (Step 2), so the workflow needs a way
+to get it onto the runner before `run` executes. This is a genuinely open
+detail this runbook introduces (not a pre-existing gap) — three concrete
+options, in order of least to most infrastructure:
+
+- Store the whole file's contents as a single Actions secret
+  (`BACKEND_HEALTH_TENANTS_YAML`) and write it out as a step before "Run pull
+  job": `echo "${{ secrets.BACKEND_HEALTH_TENANTS_YAML }}" > config/tenants.yaml`.
+- Keep it in a separate private repo, checked out via a deploy key.
+- Fetch it from a secret manager (e.g. GCP Secret Manager) at job start.
+
+The first option needs no new infrastructure and is the natural default for a
+single-tenant or few-tenant onboarding; move to the others if the registry
+grows large enough that a secret-embedded file feels wrong.
 
 ## Step 6: Verify before trusting the cron
 
