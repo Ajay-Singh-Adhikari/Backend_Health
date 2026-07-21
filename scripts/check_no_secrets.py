@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Fail if any tracked file contains a New Relic key-shaped string.
 
-A backstop against committing a real credential. Runs in CI. Scans git-tracked
-files only; skips itself and the credentials doc, which necessarily describe the
-key formats.
+A backstop against committing a real credential. Runs in CI over all git-tracked
+files. The key formats appear here only as regex fragments, which do not match
+themselves, so no file is exempted (a real key anywhere, including in docs, must
+fail).
 """
 
 from __future__ import annotations
@@ -11,9 +12,6 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
-
-SELF = "scripts/check_no_secrets.py"
-SKIP = {SELF, "docs/credentials.md"}
 
 PATTERNS = {
     "New Relic user key (NRAK)": re.compile(r"NRAK-[A-Za-z0-9]{20,}"),
@@ -26,14 +24,15 @@ def tracked_files() -> list[str]:
     out = subprocess.run(
         ["git", "ls-files"], capture_output=True, text=True, check=True
     ).stdout
-    return [line for line in out.splitlines() if line and line not in SKIP]
+    return [line for line in out.splitlines() if line]
 
 
 def scan() -> list[tuple[str, str]]:
     findings: list[tuple[str, str]] = []
     for path in tracked_files():
         try:
-            text = open(path, encoding="utf-8", errors="ignore").read()
+            with open(path, encoding="utf-8", errors="ignore") as fh:
+                text = fh.read()
         except OSError:
             continue
         for label, pattern in PATTERNS.items():
