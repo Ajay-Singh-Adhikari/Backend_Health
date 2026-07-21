@@ -29,6 +29,14 @@ default) across runs — each scheduled run is a fresh process, so this file
 is what lets the pipeline know "this tenant has now failed 3 runs in a row"
 rather than only ever seeing one run in isolation.
 
+In the scheduled GitHub Actions workflow, the state file survives across
+runs via `actions/cache`. Cache entries are immutable per key, so the
+workflow saves under a run-id-unique key and restores via a shared prefix
+(`restore-keys`), which resolves to the most recently saved match — a fixed,
+reused key would silently fail to update after the first run. This step
+saves `if: always()`, specifically because a *failing* run is exactly when
+the streak must still be persisted, or the threshold could never be reached.
+
 Check it any time, without querying BigQuery:
 
 ```
