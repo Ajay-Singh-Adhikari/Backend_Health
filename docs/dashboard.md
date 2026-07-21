@@ -2,8 +2,7 @@
 
 Looker Studio is a manual, click-through UI — nothing here can be created by
 code, so this is a precise setup guide rather than a shipped dashboard file.
-Addresses issue #9 (verdict-first status card). Evidence charts (#10) are a
-separate section further down, added once #10 lands.
+Covers issue #9 (verdict-first status card) and issue #10 (evidence charts).
 
 Follows the dashboard philosophy in the README: verdict first, evidence
 second; nothing included just because the data exists; an engineer should be
@@ -82,11 +81,87 @@ With the tenant selector on `tenant-b`, the card should show a red
 kind of detail "verdict first, evidence second" is meant to surface via the
 reasons, not a wall of raw charts.
 
+## Evidence charts
+
+Per the README's dashboard philosophy: "Don't include a chart just because
+the data exists. Only include what changes what an engineer does next." Every
+chart below is included because it answers a specific "why is the verdict
+what it is" question the status card's `reasons` array raises but doesn't
+fully explain on its own. All three read `daily_tenant_metrics` (#6), scoped
+by the same tenant selector as the status card.
+
+### 1. Latency trend (line chart)
+
+- Dimension: `day`. Metric: `avg_p95_ms`.
+- **Engineer action it drives:** correlates a latency `reasons` hit with
+  *when* it started — a deploy, a traffic spike, a dependency outage — rather
+  than only knowing today's number.
+- Rename the calculated field to "Avg P95 Latency (ms)" — Looker Studio has
+  no separate axis-title box, so the calculated-field name **is** the axis
+  label (per the README's practical notes).
+- Watch "Auto: exclude today" on the chart's own date range — unlike the
+  status card (which now reads `latest_tenant_verdict` and has no date
+  filter), this trend chart legitimately needs one, so this trap still
+  applies here.
+
+### 2. Resource pressure trend (combo line chart)
+
+- Dimension: `day`. Metrics: `max_cpu_percent`, `max_memory_percent`.
+- **Engineer action it drives:** shows pressure *building* before it crosses
+  into `action_needed` — the difference between reacting to an incident and
+  pre-emptively scaling. This is exactly what the worked example below shows.
+- Both metrics are true snapshots (a point-in-time percentage) — if this
+  chart is ever widened into a weekly/monthly rollup on top of the daily
+  view, that rollup must also use AVG or MAX, never SUM, or "average CPU %"
+  over a week would silently turn into a meaningless multiple-of-100 number.
+
+### 3. Bottleneck events (table, not a trend line)
+
+- Dimension: `day`, `tenant_id`. Metric: `bottleneck_count`.
+- **Engineer action it drives:** a count trend alone ("3 today vs. 1
+  yesterday") doesn't say *which* transaction to investigate. A table
+  ranked by count over the selected range points at the specific offender —
+  New Relic APM's own transaction traces (per the README) are the next place
+  to look, not this dashboard.
+
+### Considered and rejected
+
+- **Per-endpoint throughput trend** (`throughput_rpm` faceted by
+  `transaction_name`) — high-cardinality, no single action follows from it;
+  a general traffic dip/spike is already visible as a side-effect of the
+  latency and resource charts reacting to it.
+- **P50/P99 latency alongside P95** — P95 is already the verdict-driving
+  metric; adding P50/P99 here would duplicate the same story without a
+  distinct engineer action. If tail latency (P99) specifically becomes a
+  recurring complaint, that's grounds for a future, deliberately-added chart
+  — not a default inclusion now.
+
+## Evidence charts worked example (real, not hypothetical)
+
+Three consecutive days for `tenant-b`, each rolled up from four hourly demo
+pulls (00:00/06:00/12:00/18:00 UTC) — the same shape a full day of scheduled
+runs produces. Asserted in
+`tests/test_verdict_integration.py::test_trend_worked_example_matches_demo_pipeline_output`.
+
+| Day | avg P95 latency | max CPU | max memory | bottleneck events |
+|---|---|---|---|---|
+| 2026-07-19 | 354.7ms | 82.6% | 72.6% | 2 |
+| 2026-07-20 | 472.3ms | 91.2% | 86.1% | 7 |
+| 2026-07-21 | 388.3ms | 94.1% | 82.2% | 4 |
+
+CPU climbs across the window and crosses the 90% action threshold by day 2 —
+exactly the "pressure building" story the resource chart exists to tell. The
+bottleneck-events table would show day 2's spike to 7 events, prompting an
+engineer to check what changed that day, rather than only seeing "watch" on
+today's status card with no sense of the trend behind it.
+
 ## Checklist before sharing with engineers
 
-- [ ] Tenant selector switches the card correctly for all three demo tenants
-- [ ] Card reads `latest_tenant_verdict`, not a date-filtered `tenant_health_verdict`
+- [ ] Tenant selector switches the card and all charts correctly for all three demo tenants
+- [ ] Status card reads `latest_tenant_verdict`, not a date-filtered `tenant_health_verdict`
 - [ ] `verdict` configured as a Dimension (not silently `COUNT`-wrapped)
 - [ ] Conditional formatting colors match Healthy/Watch/Action Needed
 - [ ] `reasons` visible without leaving the status card view
 - [ ] The verdict's `day` is visible, so a stale (failing-pipeline) status reads as stale
+- [ ] Every chart on the page maps to a written-down engineer action (see rejected list above for what didn't qualify)
+- [ ] Trend chart calculated fields are renamed for axis labels; date ranges checked against "exclude today"
