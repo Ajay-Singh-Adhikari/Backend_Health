@@ -18,5 +18,27 @@ jobs:
           python-version: "3.11"
       - name: Install
         run: pip install -e .
+      # Each scheduled run starts on a fresh runner with no persisted disk, but
+      # pipeline-health's consecutive-failure streak (#8) only means anything
+      # across runs. GitHub Actions cache entries are immutable per key, so a
+      # single reused key cannot be updated run-to-run — save under a
+      # run-id-unique key and restore via a shared prefix, which resolves to
+      # the most recently saved matching entry.
+      - name: Restore pipeline-health state
+        uses: actions/cache/restore@v4
+        with:
+          path: out/pipeline_health.json
+          key: backend-health-pipeline-state-${{ github.run_id }}
+          restore-keys: |
+            backend-health-pipeline-state-
       - name: Run pull job
         run: python -m backend_health run
+      # Runs even if the pull job above failed: a failing run is exactly when
+      # the streak must still be persisted, or alerting after N consecutive
+      # failures could never trigger.
+      - name: Save pipeline-health state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: out/pipeline_health.json
+          key: backend-health-pipeline-state-${{ github.run_id }}
