@@ -102,6 +102,23 @@ def test_client_graphql_error_raises():
         client.run_nrql("SELECT 1")
 
 
+def test_client_non_json_body_raises():
+    class NonJsonResponse:
+        status_code = 200
+        text = "<html>gateway error</html>"
+
+        def json(self):
+            raise ValueError("no json")
+
+    class NonJsonSession:
+        def post(self, *_, **__):
+            return NonJsonResponse()
+
+    client = NerdGraphClient("k", "1", session=NonJsonSession())
+    with pytest.raises(NerdGraphError, match="non-JSON body"):
+        client.run_nrql("SELECT 1")
+
+
 def test_nerdgraph_source_normalizes_and_converts_units():
     session = FakeSession(
         {

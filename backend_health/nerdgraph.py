@@ -96,7 +96,10 @@ class NerdGraphClient:
         if resp.status_code != 200:
             raise NerdGraphError(f"NerdGraph returned HTTP {resp.status_code}: {resp.text[:200]}")
 
-        body = resp.json()
+        try:
+            body = resp.json()
+        except ValueError as exc:
+            raise NerdGraphError(f"NerdGraph returned a non-JSON body: {resp.text[:200]}") from exc
         if body.get("errors"):
             raise NerdGraphError(f"NerdGraph GraphQL errors: {body['errors']}")
 
