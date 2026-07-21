@@ -6,9 +6,16 @@ has been built and exercised entirely against **demo** tenants
 no real New Relic or GCP access was available while building it. This is the
 runbook for replacing that demo path with a real client, end to end.
 
-Nothing here is hypothetical — every command below was run against a
-throwaway registry file with a synthetic tenant before being written down, so
-the commands and the error messages you'll actually see are accurate.
+The registry, credential-resolution, and CLI steps below (Steps 2, 3, 6, and
+the `pipeline-health` command in Step 8) were actually run against a
+throwaway registry file with a synthetic tenant before being written down —
+the commands and the `MissingCredentialError` message you'll see are real
+output, not invented. The BigQuery DDL and Looker Studio steps (4, 5, 7), and
+the alert-webhook check in Step 8, could not be — this environment has no
+live GCP project, Looker Studio access, or webhook to post to, the same
+constraint noted throughout #6–#11 — so those are standard, documented
+usage, not something executed and confirmed here. Verify them the first time
+you actually run them, same as any new runbook.
 
 ## Step 0: What "onboarding" means here
 
