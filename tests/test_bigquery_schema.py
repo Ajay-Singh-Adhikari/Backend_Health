@@ -64,6 +64,19 @@ def test_to_rows_maps_bundle():
     assert rows["resource_samples"][0]["host"] == "web-1"
 
 
+def test_to_rows_uses_sample_timestamp_not_bundle():
+    later = datetime(2026, 7, 21, 13, 30, 0)
+    bundle = MetricsBundle(
+        tenant_id="tenant-a",
+        collected_at=COLLECTED_AT,
+        latency=[LatencySample("tenant-a", later, "GET /x", 1.0, 2.0, 3.0, 4.0)],
+        bottlenecks=[],
+        resources=[],
+    )
+    rows = to_rows(bundle)
+    assert rows["latency_samples"][0]["collected_at"] == later.isoformat()
+
+
 def test_to_rows_empty_bundle():
     bundle = MetricsBundle("tenant-a", COLLECTED_AT, [], [], [])
     rows = to_rows(bundle)

@@ -94,13 +94,16 @@ def render_schema_sql(dataset: str = DATASET_PLACEHOLDER) -> str:
 
 
 def to_rows(bundle: MetricsBundle) -> dict[str, list[dict]]:
-    """Map a MetricsBundle to insertable rows keyed by table name."""
-    collected_at = bundle.collected_at.isoformat()
+    """Map a MetricsBundle to insertable rows keyed by table name.
+
+    Each row carries its own sample's `collected_at` rather than the bundle's,
+    so the row timestamp always reflects the data it came from.
+    """
     return {
         "latency_samples": [
             {
                 "tenant_id": s.tenant_id,
-                "collected_at": collected_at,
+                "collected_at": s.collected_at.isoformat(),
                 "transaction_name": s.transaction,
                 "p50_ms": s.p50_ms,
                 "p95_ms": s.p95_ms,
@@ -112,7 +115,7 @@ def to_rows(bundle: MetricsBundle) -> dict[str, list[dict]]:
         "bottlenecks": [
             {
                 "tenant_id": b.tenant_id,
-                "collected_at": collected_at,
+                "collected_at": b.collected_at.isoformat(),
                 "transaction_name": b.transaction,
                 "duration_ms": b.duration_ms,
                 "kind": b.kind,
@@ -122,7 +125,7 @@ def to_rows(bundle: MetricsBundle) -> dict[str, list[dict]]:
         "resource_samples": [
             {
                 "tenant_id": r.tenant_id,
-                "collected_at": collected_at,
+                "collected_at": r.collected_at.isoformat(),
                 "host": r.host,
                 "cpu_percent": r.cpu_percent,
                 "memory_percent": r.memory_percent,
