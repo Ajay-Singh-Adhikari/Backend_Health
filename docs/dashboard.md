@@ -152,8 +152,16 @@ runs produces. Asserted in
 CPU climbs across the window and crosses the 90% action threshold by day 2 —
 exactly the "pressure building" story the resource chart exists to tell. The
 bottleneck-events table would show day 2's spike to 7 events, prompting an
-engineer to check what changed that day, rather than only seeing "watch" on
-today's status card with no sense of the trend behind it.
+engineer to check what changed that day, rather than seeing a single verdict
+with no sense of the trend behind it.
+
+> **Note on the two worked examples in this doc:** this table's 2026-07-21 row
+> (bottleneck_count 4) and the status-card worked example above (bottleneck
+> count 1) both reference the same calendar day for `tenant-b` but are *not*
+> the same number, by design — this table rolls up all four sampled hours of
+> that day, while the status-card example deliberately used one hour's
+> bundle to keep the verdict mechanism simple. A real daily rollup always
+> aggregates the full day (like this table), never a single hour.
 
 ## Checklist before sharing with engineers
 
