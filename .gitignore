@@ -1,0 +1,33 @@
+# Local-only project config (not tracked)
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Local credentials / secrets — never commit
+*.env
+.env
+.env.*
+*-credentials.json
+service-account*.json
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
