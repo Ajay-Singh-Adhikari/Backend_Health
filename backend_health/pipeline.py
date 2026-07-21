@@ -44,11 +44,21 @@ class RunSummary:
 def ingest_tenant(
     tenant: Tenant, source: MetricsSource, sink: Sink, collected_at: datetime
 ) -> TenantResult:
-    """Pull one tenant's metrics and write them to the sink for `collected_at`."""
-    bundle = source.fetch(tenant, collected_at)
+    """Pull one tenant's metrics and write them to the sink for `collected_at`.
+
+    A tenant writes to three tables (latency/bottlenecks/resources). If a later
+    table's write raises, earlier tables for this tenant have already landed —
+    the returned result always reflects rows actually written, even on failure,
+    so a partial write is never misreported as "0 rows written".
+    """
     rows_written = 0
-    for table, rows in to_rows(bundle).items():
-        rows_written += sink.replace(table, tenant.tenant_id, collected_at, rows)
+    try:
+        bundle = source.fetch(tenant, collected_at)
+        for table, rows in to_rows(bundle).items():
+            rows_written += sink.replace(table, tenant.tenant_id, collected_at, rows)
+    except Exception as exc:
+        log.exception("tenant %s ingestion failed", tenant.tenant_id)
+        return TenantResult(tenant.tenant_id, ok=False, rows_written=rows_written, error=str(exc))
     return TenantResult(tenant.tenant_id, ok=True, rows_written=rows_written)
 
 
@@ -58,11 +68,8 @@ def run(
     """Ingest every tenant, isolating per-tenant failures so one cannot abort the run."""
     summary = RunSummary()
     for tenant in tenants:
-        try:
-            result = ingest_tenant(tenant, source, sink, collected_at)
+        result = ingest_tenant(tenant, source, sink, collected_at)
+        if result.ok:
             log.info("tenant %s: wrote %d rows", tenant.tenant_id, result.rows_written)
-        except Exception as exc:
-            log.exception("tenant %s ingestion failed", tenant.tenant_id)
-            result = TenantResult(tenant.tenant_id, ok=False, error=str(exc))
         summary.results.append(result)
     return summary

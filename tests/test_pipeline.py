@@ -18,6 +18,29 @@ def test_ingest_tenant_writes_rows(tmp_path):
     assert result.rows_written > 0
 
 
+def test_ingest_tenant_reports_partial_rows_on_mid_write_failure(tmp_path):
+    """If a later table's write fails, rows already written for earlier tables
+    must still be reflected in the result, not silently reported as zero."""
+
+    class FlakySink(JsonlSink):
+        def __init__(self, directory):
+            super().__init__(directory)
+            self.calls = 0
+
+        def replace(self, table, tenant_id, collected_at, rows):
+            self.calls += 1
+            if self.calls == 2:  # fail on the second table this tenant writes
+                raise RuntimeError("simulated BigQuery write failure")
+            return super().replace(table, tenant_id, collected_at, rows)
+
+    sink = FlakySink(tmp_path)
+    result = ingest_tenant(_tenant("tenant-a"), DemoMetricsSource(), sink, COLLECTED_AT)
+
+    assert not result.ok
+    assert result.rows_written > 0, "rows written before the failing table must still be counted"
+    assert "simulated BigQuery write failure" in result.error
+
+
 def test_run_isolates_one_tenant_failure(tmp_path):
     class FlakySource:
         def fetch(self, tenant, collected_at):
