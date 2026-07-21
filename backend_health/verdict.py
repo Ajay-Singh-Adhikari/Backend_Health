@@ -83,8 +83,19 @@ def overall_verdict(statuses: list[str]) -> str:
     return STATUS_ORDER[worst]
 
 
+def _sql_string_literal(value: str) -> str:
+    """Escape a value for interpolation into a single-quoted SQL string literal.
+
+    tenant_id is an internal registry identifier, not arbitrary user input, but
+    nothing stops it from containing a `'` — escaping here is what keeps a
+    stray apostrophe from producing broken or injectable generated SQL rather
+    than a byte-for-byte-matching but invalid query.
+    """
+    return "'" + value.replace("'", "\\'") + "'"
+
+
 def _struct_literal(tenant_id: str, thresholds: dict[str, dict[str, float]]) -> str:
-    fields = [f"'{tenant_id}' AS tenant_id"]
+    fields = [f"{_sql_string_literal(tenant_id)} AS tenant_id"]
     for metric, bounds in thresholds.items():
         prefix = _column_prefix(metric)
         for bound in ("watch", "action"):

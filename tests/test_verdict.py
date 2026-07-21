@@ -86,6 +86,14 @@ def test_render_uses_coalesce_for_default_fallback():
     assert "CROSS JOIN" in sql
 
 
+def test_render_escapes_single_quote_in_tenant_id():
+    tenant = _tenant("o'brien-tenant")
+    sql = render_verdict_view_sql([tenant], dataset="ds")
+    assert "'o\\'brien-tenant' AS tenant_id" in sql
+    # unescaped would break out of the string literal — must not appear
+    assert "'o'brien-tenant'" not in sql
+
+
 def test_render_bottleneck_thresholds_are_integers_not_floats():
     sql = render_verdict_view_sql([_tenant("tenant-a")], dataset="ds")
     assert "1 AS bottleneck_watch" in sql
