@@ -30,6 +30,11 @@ prefixed with `BACKEND_HEALTH_NRKEY_`:
 credential_ref "tenant-a"  ->  BACKEND_HEALTH_NRKEY_TENANT_A
 ```
 
+Because normalization upper-cases and collapses non-alphanumerics to `_`, keep
+`credential_ref` values distinct *after* normalization (e.g. `tenant-a` and
+`tenant.a` both map to `..._TENANT_A`). Using the `tenant_id`, which the
+registry already forces to be unique, avoids this.
+
 In the scheduled workflow, store each key as an Actions secret and map it in:
 
 ```yaml
