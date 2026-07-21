@@ -28,14 +28,12 @@ def retry_with_backoff(
     if attempts < 1:
         raise ValueError("attempts must be at least 1")
 
-    last_exc: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
             return fn()
         except Exception as exc:  # noqa: BLE001 - deliberately broad, re-raised below
-            last_exc = exc
             if attempt == attempts:
-                break
+                raise
             delay = base_delay_seconds * (2 ** (attempt - 1))
             log.warning(
                 "%s failed (attempt %d/%d): %s; retrying in %.1fs",
@@ -47,5 +45,4 @@ def retry_with_backoff(
             )
             sleep(delay)
 
-    assert last_exc is not None  # loop always runs at least once
-    raise last_exc
+    raise RuntimeError("unreachable: retry_with_backoff loop exited without returning or raising")

@@ -33,19 +33,31 @@ class PipelineHealthState:
         if not path.exists():
             return cls()
         try:
-            return cls(json.loads(path.read_text()))
+            data = json.loads(path.read_text())
         except (json.JSONDecodeError, OSError):
             # Corrupt or unreadable state must never break a scheduled run;
             # start clean rather than crash the pipeline over bookkeeping.
             return cls()
+        if not isinstance(data, dict):
+            # Valid JSON but the wrong shape (e.g. a list) is just as much a
+            # "don't crash the run over bookkeeping" case as invalid JSON.
+            return cls()
+        return cls(data)
 
     def save(self, path: str | Path) -> None:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self._state, indent=2, sort_keys=True))
 
+    @staticmethod
+    def _coerce_entry(entry: object) -> dict:
+        """A malformed per-tenant entry (wrong type) is treated as absent,
+        for the same reason a malformed state file is: bookkeeping must never
+        crash a scheduled run."""
+        return entry if isinstance(entry, dict) else {}
+
     def record(self, tenant_id: str, ok: bool, error: str | None = None) -> TenantHealth:
-        prior = self._state.get(tenant_id, {})
+        prior = self._coerce_entry(self._state.get(tenant_id))
         streak = 0 if ok else prior.get("consecutive_failures", 0) + 1
         entry = {
             "consecutive_failures": streak,
@@ -56,9 +68,9 @@ class PipelineHealthState:
         return TenantHealth(tenant_id, streak, entry["last_status"], entry["last_error"])
 
     def get(self, tenant_id: str) -> TenantHealth | None:
-        entry = self._state.get(tenant_id)
-        if entry is None:
+        if tenant_id not in self._state:
             return None
+        entry = self._coerce_entry(self._state.get(tenant_id))
         return TenantHealth(
             tenant_id,
             entry.get("consecutive_failures", 0),

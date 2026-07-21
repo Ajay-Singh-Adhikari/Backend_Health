@@ -53,3 +53,22 @@ def test_load_corrupt_file_returns_empty_state_not_raise(tmp_path):
     path.write_text("{not valid json")
     state = PipelineHealthState.load(path)
     assert state.all() == []
+
+
+def test_load_wrong_shape_file_returns_empty_state_not_raise(tmp_path):
+    path = tmp_path / "health.json"
+    path.write_text("[1, 2, 3]")  # valid JSON, but not the expected {tenant: entry} mapping
+    state = PipelineHealthState.load(path)
+    assert state.all() == []
+
+
+def test_malformed_per_tenant_entry_does_not_crash_record_or_get():
+    state = PipelineHealthState({"tenant-a": "not-a-dict"})
+    # record() must not crash reading the malformed prior entry
+    health = state.record("tenant-a", ok=False, error="e")
+    assert health.consecutive_failures == 1
+
+    state2 = PipelineHealthState({"tenant-b": ["also", "not", "a", "dict"]})
+    health2 = state2.get("tenant-b")
+    assert health2.consecutive_failures == 0
+    assert health2.last_status == "unknown"
