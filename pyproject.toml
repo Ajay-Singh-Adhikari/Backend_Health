@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backend-health"
+version = "0.1.0"
+description = "Pull New Relic APM metrics per tenant and write them to BigQuery for the Backend Health dashboard"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "PyYAML>=6.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+bigquery = ["google-cloud-bigquery>=3.0"]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+backend-health = "backend_health.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["backend_health*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
