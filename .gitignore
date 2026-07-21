@@ -27,6 +27,9 @@ htmlcov/
 *-credentials.json
 service-account*.json
 
+# Demo sink output
+/out/
+
 # Editor / OS
 .vscode/
 .idea/
