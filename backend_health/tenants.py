@@ -9,7 +9,7 @@ VALID_STATUSES = ("active", "needs-setup", "paused")
 class Tenant:
     """A single monitored client site.
 
-    `credential_ref` is a lookup key for the secret backend (#4), never a secret
+    `credential_ref` is a lookup key for the secret backend, never a secret
     itself. `codename` is an internal-only label and must never carry a real
     client/company name in this repo.
     """

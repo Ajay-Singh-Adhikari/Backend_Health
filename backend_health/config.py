@@ -18,6 +18,8 @@ def load_registry(path: str | Path) -> list[Tenant]:
         raise RegistryError(f"tenant registry not found: {path}")
 
     data = yaml.safe_load(path.read_text()) or {}
+    if not isinstance(data, dict):
+        raise RegistryError("registry must be a mapping with a top-level 'tenants' list")
     raw_tenants = data.get("tenants")
     if not isinstance(raw_tenants, list):
         raise RegistryError("registry must have a top-level 'tenants' list")
@@ -61,13 +63,17 @@ def _parse_tenant(entry: object, index: int) -> Tenant:
             "and 'credential_ref'"
         )
 
+    overrides = entry.get("overrides") or {}
+    if not isinstance(overrides, dict):
+        raise RegistryError(f"tenant '{tenant_id}' 'overrides' must be a mapping")
+
     return Tenant(
         tenant_id=tenant_id,
         status=status,
         newrelic_account_id=account_id,
         credential_ref=credential_ref,
         codename=entry.get("codename"),
-        overrides=entry.get("overrides") or {},
+        overrides=overrides,
     )
 
 

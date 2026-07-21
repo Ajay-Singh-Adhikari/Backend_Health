@@ -89,6 +89,26 @@ def test_missing_tenants_key_rejected(tmp_path):
         load_registry(path)
 
 
+def test_non_mapping_root_rejected(tmp_path):
+    path = _write(tmp_path, "- just\n- a\n- list\n")
+    with pytest.raises(RegistryError, match="must be a mapping"):
+        load_registry(path)
+
+
+def test_non_mapping_overrides_rejected(tmp_path):
+    path = _write(
+        tmp_path,
+        """
+        tenants:
+          - tenant_id: tenant-x
+            status: paused
+            overrides: not-a-mapping
+        """,
+    )
+    with pytest.raises(RegistryError, match="'overrides' must be a mapping"):
+        load_registry(path)
+
+
 def test_unknown_tenant_lookup(tmp_path):
     tenants = load_registry("config/tenants.example.yaml")
     with pytest.raises(RegistryError, match="unknown tenant_id"):
