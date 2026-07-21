@@ -128,6 +128,23 @@ def test_nerdgraph_source_normalizes_and_converts_units():
     assert bundle.resources[0].cpu_percent == 72.0
 
 
+def test_nerdgraph_source_handles_null_values_for_empty_window():
+    session = FakeSession(
+        {
+            NRQL_LATENCY: [
+                {"name": "GET /idle", "percentile.duration": {"50": None, "95": None,
+                 "99": None}, "throughput": None}
+            ],
+            NRQL_RESOURCES: [{"hostname": "web-1", "cpu": None, "mem": None}],
+        }
+    )
+    source = NerdGraphMetricsSource(DemoCredentialBackend(), session=session)
+    bundle = source.fetch(TENANT, COLLECTED_AT)
+    assert bundle.latency[0].p95_ms == 0.0
+    assert bundle.latency[0].throughput_rpm == 0.0
+    assert bundle.resources[0].cpu_percent == 0.0
+
+
 def test_nerdgraph_source_handles_facet_fallback():
     session = FakeSession({NRQL_RESOURCES: [{"facet": "web-9", "cpu": 10.0, "mem": 20.0}]})
     source = NerdGraphMetricsSource(DemoCredentialBackend(), session=session)

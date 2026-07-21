@@ -115,6 +115,14 @@ def _facet_value(row: dict, field: str) -> str:
     return str(value) if value is not None else "unknown"
 
 
+def _num(value: object) -> float:
+    """Coerce a NerdGraph numeric field to float; treat null/missing as 0.0.
+
+    An empty query window returns null for percentiles and aggregates.
+    """
+    return float(value) if value is not None else 0.0
+
+
 class NerdGraphMetricsSource:
     """Fetches and normalizes APM metrics for a tenant via NerdGraph."""
 
@@ -127,7 +135,7 @@ class NerdGraphMetricsSource:
     ):
         self._credentials = credentials
         self._endpoint = endpoint
-        self._session = session
+        self._session = session or requests.Session()
 
     def _client(self, tenant: Tenant) -> NerdGraphClient:
         api_key = self._credentials.get_api_key(tenant.credential_ref)
@@ -157,10 +165,10 @@ class NerdGraphMetricsSource:
                     tenant_id=tenant.tenant_id,
                     collected_at=collected_at,
                     transaction=_facet_value(row, "name"),
-                    p50_ms=float(pct.get("50", 0.0)) * _S_TO_MS,
-                    p95_ms=float(pct.get("95", 0.0)) * _S_TO_MS,
-                    p99_ms=float(pct.get("99", 0.0)) * _S_TO_MS,
-                    throughput_rpm=float(row.get("throughput", 0.0)),
+                    p50_ms=_num(pct.get("50")) * _S_TO_MS,
+                    p95_ms=_num(pct.get("95")) * _S_TO_MS,
+                    p99_ms=_num(pct.get("99")) * _S_TO_MS,
+                    throughput_rpm=_num(row.get("throughput")),
                 )
             )
         return samples
@@ -173,7 +181,7 @@ class NerdGraphMetricsSource:
                     tenant_id=tenant.tenant_id,
                     collected_at=collected_at,
                     transaction=_facet_value(row, "name"),
-                    duration_ms=float(row.get("duration", 0.0)) * _S_TO_MS,
+                    duration_ms=_num(row.get("duration")) * _S_TO_MS,
                     kind="slow_transaction",
                 )
             )
@@ -187,8 +195,8 @@ class NerdGraphMetricsSource:
                     tenant_id=tenant.tenant_id,
                     collected_at=collected_at,
                     host=_facet_value(row, "hostname"),
-                    cpu_percent=float(row.get("cpu", 0.0)),
-                    memory_percent=float(row.get("mem", 0.0)),
+                    cpu_percent=_num(row.get("cpu")),
+                    memory_percent=_num(row.get("mem")),
                 )
             )
         return out
