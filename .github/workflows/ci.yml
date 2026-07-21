@@ -20,5 +20,7 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Lint
         run: ruff check .
+      - name: Secret scan
+        run: python scripts/check_no_secrets.py
       - name: Test
         run: pytest -q
