@@ -9,6 +9,7 @@ from backend_health.verdict import (
     ThresholdOverrideError,
     classify,
     overall_verdict,
+    render_latest_verdict_view_sql,
     render_verdict_view_sql,
     resolve_thresholds,
 )
@@ -107,4 +108,20 @@ def test_verdict_sql_file_is_in_sync_with_module():
     assert on_disk == render_verdict_view_sql(tenants), (
         "sql/views/tenant_health_verdict.sql is stale; regenerate with "
         "`python -m backend_health.verdict > sql/views/tenant_health_verdict.sql`"
+    )
+
+
+def test_latest_verdict_view_partitions_by_tenant_ordered_by_day_desc():
+    sql = render_latest_verdict_view_sql(dataset="ds")
+    assert "`ds.latest_tenant_verdict`" in sql
+    assert "PARTITION BY tenant_id ORDER BY day DESC" in sql
+    assert "WHERE row_num = 1" in sql
+    assert "`ds.tenant_health_verdict`" in sql
+
+
+def test_latest_verdict_sql_file_is_in_sync_with_module():
+    on_disk = Path("sql/views/latest_tenant_verdict.sql").read_text()
+    assert on_disk == render_latest_verdict_view_sql(), (
+        "sql/views/latest_tenant_verdict.sql is stale; regenerate with "
+        "`python -m backend_health.verdict --latest > sql/views/latest_tenant_verdict.sql`"
     )
