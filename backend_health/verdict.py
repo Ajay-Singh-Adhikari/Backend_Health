@@ -22,8 +22,18 @@ DEFAULT_THRESHOLDS: dict[str, dict[str, float]] = {
 
 METRIC_KEYS = tuple(DEFAULT_THRESHOLDS)
 _INT_METRICS = {"bottleneck_count"}
+_BOUND_KEYS = {"watch", "action"}
 
 STATUS_ORDER = ("healthy", "watch", "action_needed")
+
+
+class ThresholdOverrideError(ValueError):
+    """Raised when a tenant's `overrides` names a metric or bound that doesn't exist.
+
+    Silently ignoring an unrecognized key would let a typo'd override (e.g.
+    `latency_p95` instead of `latency_p95_ms`) apply with zero effect and no
+    indication anything was wrong.
+    """
 
 
 def resolve_thresholds(tenant: Tenant) -> dict[str, dict[str, float]]:
@@ -33,9 +43,23 @@ def resolve_thresholds(tenant: Tenant) -> dict[str, dict[str, float]]:
     side falls back to the default (e.g. tenant-a overrides only `watch` for
     latency in config/tenants.example.yaml).
     """
+    overrides = tenant.overrides or {}
+    unknown_metrics = set(overrides) - set(DEFAULT_THRESHOLDS)
+    if unknown_metrics:
+        raise ThresholdOverrideError(
+            f"tenant '{tenant.tenant_id}' overrides unknown metric(s) {sorted(unknown_metrics)}; "
+            f"expected one of {sorted(DEFAULT_THRESHOLDS)}"
+        )
+
     resolved = {}
     for metric, default in DEFAULT_THRESHOLDS.items():
-        override = (tenant.overrides or {}).get(metric, {})
+        override = overrides.get(metric, {})
+        unknown_bounds = set(override) - _BOUND_KEYS
+        if unknown_bounds:
+            raise ThresholdOverrideError(
+                f"tenant '{tenant.tenant_id}' overrides unknown bound(s) {sorted(unknown_bounds)} "
+                f"for metric '{metric}'; expected one of {sorted(_BOUND_KEYS)}"
+            )
         resolved[metric] = {**default, **override}
     return resolved
 

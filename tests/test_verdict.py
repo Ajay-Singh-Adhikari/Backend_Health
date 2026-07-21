@@ -2,8 +2,11 @@ from pathlib import Path
 
 from backend_health.config import load_registry
 from backend_health.tenants import Tenant
+import pytest
+
 from backend_health.verdict import (
     DEFAULT_THRESHOLDS,
+    ThresholdOverrideError,
     classify,
     overall_verdict,
     render_verdict_view_sql,
@@ -47,6 +50,18 @@ def test_resolve_thresholds_partial_override_keeps_other_bound():
     assert resolved["latency_p95_ms"]["action"] == DEFAULT_THRESHOLDS["latency_p95_ms"]["action"]
     # other metrics untouched
     assert resolved["cpu_percent"] == DEFAULT_THRESHOLDS["cpu_percent"]
+
+
+def test_resolve_thresholds_rejects_unknown_metric_typo():
+    tenant = _tenant("tenant-a", overrides={"latency_p95": {"watch": 800}})  # missing _ms
+    with pytest.raises(ThresholdOverrideError, match="unknown metric"):
+        resolve_thresholds(tenant)
+
+
+def test_resolve_thresholds_rejects_unknown_bound_typo():
+    tenant = _tenant("tenant-a", overrides={"latency_p95_ms": {"maximum": 800}})  # not watch/action
+    with pytest.raises(ThresholdOverrideError, match="unknown bound"):
+        resolve_thresholds(tenant)
 
 
 def test_render_includes_every_tenant_and_default_sentinel():
