@@ -221,6 +221,42 @@ def _metric_value_column(metric: str) -> str:
     }[metric]
 
 
+def render_latest_verdict_view_sql(dataset: str = "{{dataset}}") -> str:
+    """Generate the view the status card (#9) should actually read.
+
+    One row per tenant: its most recent verdict, whatever day that is. A
+    Looker Studio date-range filter is global, not per-tenant — if one
+    tenant's pipeline lags or fails for a day (#8), a "last N days" filter
+    would show that tenant blank rather than its last known verdict, which is
+    worse for an on-call engineer than a status marked stale. This view has no
+    tenant-specific content, so unlike tenant_health_verdict it needs no
+    per-tenant data to render — it's still generated for consistency with the
+    rest of this module's SQL and to keep the dataset placeholder convention
+    uniform across every generated view.
+    """
+    header = (
+        "-- Generated from backend_health/verdict.py. Do not edit by hand;\n"
+        "-- run `python -m backend_health.verdict --latest > "
+        "sql/views/latest_tenant_verdict.sql` to regenerate.\n"
+    )
+    return f"""{header}
+CREATE OR REPLACE VIEW `{dataset}.latest_tenant_verdict` AS
+SELECT * EXCEPT (row_num)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY day DESC) AS row_num
+  FROM `{dataset}.tenant_health_verdict`
+)
+WHERE row_num = 1;
+"""
+
+
 if __name__ == "__main__":
-    tenants = load_registry(DEFAULT_CONFIG)
-    print(render_verdict_view_sql(tenants), end="")
+    import sys
+
+    if "--latest" in sys.argv:
+        print(render_latest_verdict_view_sql(), end="")
+    else:
+        tenants = load_registry(DEFAULT_CONFIG)
+        print(render_verdict_view_sql(tenants), end="")
