@@ -28,6 +28,23 @@ def test_run_unknown_tenant_errors(tmp_path):
     assert rc == 1
 
 
+def test_run_non_active_tenant_errors(tmp_path, capsys):
+    config = tmp_path / "tenants.yaml"
+    config.write_text("tenants:\n  - tenant_id: paused-tenant\n    status: paused\n")
+    rc = main(
+        [
+            "run",
+            "--tenant",
+            "paused-tenant",
+            "--config",
+            str(config),
+            "--sink-dir",
+            str(tmp_path),
+        ]
+    )
+    assert rc == 1
+
+
 def test_no_command_errors():
     with pytest.raises(SystemExit):
         build_parser().parse_args([])

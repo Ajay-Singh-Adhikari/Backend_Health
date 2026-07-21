@@ -84,10 +84,18 @@ def _run(args: argparse.Namespace) -> int:
 
     if args.tenant:
         try:
-            scope = [get_tenant(tenants, args.tenant)]
+            tenant = get_tenant(tenants, args.tenant)
         except RegistryError as exc:
             log.error(str(exc))
             return 1
+        if not tenant.is_active:
+            log.error(
+                "tenant %s is not active (status=%s); nothing to run",
+                tenant.tenant_id,
+                tenant.status,
+            )
+            return 1
+        scope = [tenant]
     else:
         scope = active_tenants(tenants)
 
