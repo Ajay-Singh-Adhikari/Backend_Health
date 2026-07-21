@@ -35,7 +35,7 @@ bottlenecks AS (
     tenant_id,
     DATE(collected_at) AS day,
     COUNT(*) AS bottleneck_count
-  FROM `{{dataset}}.bottlenecks`
+  FROM `{{dataset}}.bottleneck_events`
   GROUP BY tenant_id, day
 )
 SELECT

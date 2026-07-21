@@ -42,7 +42,7 @@ TABLES: tuple[Table, ...] = (
         cluster_by="tenant_id",
     ),
     Table(
-        name="bottlenecks",
+        name="bottleneck_events",
         columns=(
             Column("tenant_id", "STRING", required=True),
             Column("collected_at", "TIMESTAMP", required=True),
@@ -112,7 +112,7 @@ def to_rows(bundle: MetricsBundle) -> dict[str, list[dict]]:
             }
             for s in bundle.latency
         ],
-        "bottlenecks": [
+        "bottleneck_events": [
             {
                 "tenant_id": b.tenant_id,
                 "collected_at": b.collected_at.isoformat(),

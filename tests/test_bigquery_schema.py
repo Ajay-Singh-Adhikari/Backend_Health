@@ -55,12 +55,12 @@ def test_to_rows_maps_bundle():
     )
     rows = to_rows(bundle)
 
-    assert set(rows) == {"latency_samples", "bottlenecks", "resource_samples"}
+    assert set(rows) == {"latency_samples", "bottleneck_events", "resource_samples"}
     lat = rows["latency_samples"][0]
     assert lat["transaction_name"] == "GET /x"
     assert lat["collected_at"] == COLLECTED_AT.isoformat()
     assert lat["p95_ms"] == 20.0
-    assert rows["bottlenecks"][0]["kind"] == "slow_transaction"
+    assert rows["bottleneck_events"][0]["kind"] == "slow_transaction"
     assert rows["resource_samples"][0]["host"] == "web-1"
 
 
@@ -80,7 +80,7 @@ def test_to_rows_uses_sample_timestamp_not_bundle():
 def test_to_rows_empty_bundle():
     bundle = MetricsBundle("tenant-a", COLLECTED_AT, [], [], [])
     rows = to_rows(bundle)
-    assert rows == {"latency_samples": [], "bottlenecks": [], "resource_samples": []}
+    assert rows == {"latency_samples": [], "bottleneck_events": [], "resource_samples": []}
 
 
 def test_daily_view_uses_avg_not_sum():

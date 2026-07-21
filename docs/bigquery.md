@@ -11,7 +11,7 @@ single source of truth) and rendered to `sql/schema.sql`:
 | Table | Grain | Key columns |
 |---|---|---|
 | `latency_samples` | one transaction per pull | `p50_ms`, `p95_ms`, `p99_ms`, `throughput_rpm` |
-| `bottlenecks` | one slow-transaction event per pull | `duration_ms`, `kind` |
+| `bottleneck_events` | one slow-transaction event per pull | `duration_ms`, `kind` |
 | `resource_samples` | one host per pull | `cpu_percent`, `memory_percent` |
 
 Every table:

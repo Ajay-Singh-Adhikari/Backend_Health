@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `{{dataset}}.latency_samples` (
 PARTITION BY DATE(collected_at)
 CLUSTER BY tenant_id;
 
-CREATE TABLE IF NOT EXISTS `{{dataset}}.bottlenecks` (
+CREATE TABLE IF NOT EXISTS `{{dataset}}.bottleneck_events` (
   tenant_id STRING NOT NULL,
   collected_at TIMESTAMP NOT NULL,
   transaction_name STRING NOT NULL,
