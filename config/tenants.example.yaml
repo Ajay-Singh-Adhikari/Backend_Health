@@ -1,0 +1,34 @@
+# Tenant registry (demo).
+#
+# The machine-readable twin of docs/tenants.md. The scheduled pull job reads
+# this file, iterates active tenants, and pulls metrics for each.
+#
+# Rules:
+#   - Opaque tenant IDs only. Never a real client/company name (this file is public).
+#   - `credential_ref` is a LOOKUP KEY for the secret backend, never a secret.
+#   - `overrides` tune per-tenant verdict thresholds; omit to use defaults.
+#
+# Adding a tenant = one entry here + one secret in the backend. No code change.
+
+tenants:
+  - tenant_id: tenant-a
+    codename: Demo tenant A (high traffic)
+    newrelic_account_id: "DEMO-1000001"
+    status: active
+    credential_ref: tenant-a
+    overrides:
+      latency_p95_ms:
+        watch: 800
+        action: 1500
+
+  - tenant_id: tenant-b
+    codename: Demo tenant B (low traffic)
+    newrelic_account_id: "DEMO-1000002"
+    status: active
+    credential_ref: tenant-b
+
+  - tenant_id: tenant-c
+    codename: Demo tenant C (resource pressure)
+    newrelic_account_id: "DEMO-1000003"
+    status: active
+    credential_ref: tenant-c
