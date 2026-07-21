@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "backend-health"
 version = "0.1.0"
 description = "Pull New Relic APM metrics per tenant and write them to BigQuery for the Backend Health dashboard"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "PyYAML>=6.0",
