@@ -1,6 +1,6 @@
 # Tenant / New Relic inventory
 
-Answers README open question #1 ("Is New Relic already active anywhere, with API/license access available?") and feeds the multi-tenant registry design (#3).
+Answers README open question #1 ("Is New Relic already active anywhere (client sites) with API/license access available?") and feeds the multi-tenant registry design (#3).
 
 Every client site that Backend Health monitors is a **tenant**. This document is the human-readable audit of each tenant's New Relic status. The machine-readable version the pipeline actually reads lives in `config/tenants.example.yaml` (added in #3).
 
@@ -8,11 +8,11 @@ Every client site that Backend Health monitors is a **tenant**. This document is
 
 ## Status legend
 
-| Status | Meaning | What this project becomes for that tenant |
+| Status | Meaning | Implication for this project |
 |---|---|---|
 | `active` | New Relic PHP agent already running; account ID + API key available | "Wire up an existing tool's API" — ready for the pipeline |
 | `needs-setup` | No New Relic yet; requires agent install + licensing/budget | Bigger initiative before the pipeline can pull anything |
-| `paused` | Was active, monitoring intentionally stopped | Excluded from scheduled runs |
+| `paused` | Was active, monitoring intentionally stopped | Kept in the inventory but excluded from scheduled runs |
 
 ## Inventory
 
